@@ -14,9 +14,10 @@ const TONES = [
   { id: 'concise',      label: 'Concise',        icon: '✂️' },
 ];
 
-let panel        = null;   // DOM element (tạo 1 lần, dùng mãi)
-let hideTimer    = null;
-let selectedTone = 'my-style';
+let panel         = null;   // DOM element (tạo 1 lần, dùng mãi)
+let hideTimer     = null;
+let selectedTone  = 'my-style';
+let activeTextbox = null;   // textbox đang được focus (để detect đúng tweet/comment)
 
 // ─── Insert text vào X editor ─────────────────────────────────────────────────
 function insertTextIntoEditor(text) {
@@ -30,8 +31,36 @@ function insertTextIntoEditor(text) {
   ed.dispatchEvent(new InputEvent('input', { bubbles: true }));
 }
 
-// ─── Lấy nội dung tweet ───────────────────────────────────────────────────────
+// ─── Lấy nội dung tweet/comment đang được reply ──────────────────────────────
+// Đi từ activeTextbox lên DOM, tìm tweet article gần nhất (chính xác hơn
+// so với lấy tweet đầu tiên trên trang — giúp reply đúng comment)
 function getTweetContent() {
+  let el = activeTextbox;
+
+  for (let depth = 0; depth < 30 && el; depth++) {
+    // Case A: đang ở bên trong một article tweet
+    if (el.tagName === 'ARTICLE' && el.getAttribute('data-testid') === 'tweet') {
+      const t = el.querySelector('[data-testid="tweetText"]');
+      if (t) return t.innerText.trim();
+    }
+
+    // Case B: previous sibling là article tweet
+    let prev = el.previousElementSibling;
+    while (prev) {
+      if (prev.tagName === 'ARTICLE' && prev.getAttribute('data-testid') === 'tweet') {
+        const t = prev.querySelector('[data-testid="tweetText"]');
+        if (t) return t.innerText.trim();
+      }
+      // Tweet lồng bên trong sibling
+      const nested = prev.querySelector('article[data-testid="tweet"] [data-testid="tweetText"]');
+      if (nested) return nested.innerText.trim();
+      prev = prev.previousElementSibling;
+    }
+
+    el = el.parentElement;
+  }
+
+  // Fallback: tweet đầu tiên trên trang
   const nodes = document.querySelectorAll('[data-testid="tweetText"]');
   for (const n of nodes) { const t = n.innerText.trim(); if (t) return t; }
   return '';
@@ -166,6 +195,7 @@ document.addEventListener('focusin', (e) => {
     t.closest('[data-testid^="tweetTextarea"]') ||
     t.closest('[data-testid="tweetTextarea_0RichTextInputContainer"]');
   if (!inReply) return;
+  activeTextbox = t;   // lưu lại để getTweetContent dùng
   showPanel();
 }, true);
 
