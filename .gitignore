@@ -1,0 +1,11 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Không commit file tạo icon tạm
+make-icons.js
+make-icons.html

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coreply — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚡ Coreply</h1>
+      <p>AI Reply Generator for X</p>
+    </div>
+
+    <div class="card">
+      <h2>Groq API Key</h2>
+      <p class="hint">
+        Get your free key at
+        <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>
+      </p>
+      <div class="row">
+        <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" />
+        <button id="toggleKey" class="icon-btn" title="Show/hide key">👁</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>My Style</h2>
+      <p class="hint">
+        Describe your personal writing style. Used when "My Style" tone is selected.
+      </p>
+      <textarea id="myStyle" rows="4"
+        placeholder="E.g.: I write in a concise, direct style with occasional humor. I avoid buzzwords and keep replies under 2 sentences...">
+      </textarea>
+    </div>
+
+    <div class="card">
+      <h2>Default Reply Language</h2>
+      <select id="language">
+        <option value="same as tweet">Same as tweet (auto-detect)</option>
+        <option value="English">English</option>
+        <option value="Vietnamese">Vietnamese (Tiếng Việt)</option>
+        <option value="Spanish">Spanish (Español)</option>
+        <option value="French">French (Français)</option>
+        <option value="Japanese">Japanese (日本語)</option>
+        <option value="Korean">Korean (한국어)</option>
+        <option value="Chinese">Chinese (中文)</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <h2>AI Model</h2>
+      <select id="model">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Best quality (recommended)</option>
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B — Fastest</option>
+        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+        <option value="gemma2-9b-it">Gemma2 9B</option>
+      </select>
+    </div>
+
+    <div class="actions">
+      <button id="save" class="btn-save">Save Settings</button>
+      <span id="saveMsg"></span>
+    </div>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
