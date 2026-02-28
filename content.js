@@ -16,7 +16,7 @@ const TONES = [
 
 let panel        = null;   // DOM element (tạo 1 lần, dùng mãi)
 let hideTimer    = null;
-let selectedTone = 'casual';
+let selectedTone = 'my-style';
 
 // ─── Insert text vào X editor ─────────────────────────────────────────────────
 function insertTextIntoEditor(text) {
@@ -51,7 +51,7 @@ function createPanel() {
 
     <div class="cp-tones">
       ${TONES.map((t, i) => `
-        <button class="cp-tone${i === 1 ? ' active' : ''}" data-tone-id="${t.id}">
+        <button class="cp-tone${i === 0 ? ' active' : ''}" data-tone-id="${t.id}">
           <span class="cp-tone-icon">${t.icon}</span>
           <span class="cp-tone-label">${t.label}</span>
         </button>`).join('')}
