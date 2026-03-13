@@ -43,6 +43,7 @@ Generate a reply ${toneDescription}.
 Rules:
 - Sound natural and authentic, like a real person
 - Do NOT start with "Great post!", "Absolutely!", or generic openers
+- Do NOT use the phrase "game changer" — use "boom" instead if needed
 - Do NOT add hashtags unless they genuinely add value
 ${wordLimit}
 - Do NOT explain what you're doing or add preamble
