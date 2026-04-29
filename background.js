@@ -63,7 +63,8 @@ ${wordLimit}
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt   },
       ],
-      max_tokens: 120,  // giảm xuống để enforce brevity
+      // my-style không bị giới hạn 40 từ nên cho phép dài hơn
+      max_tokens: WORD_LIMITED_TONES.includes(toneId) ? 120 : 300,
       temperature: 0.8,
     }),
   });

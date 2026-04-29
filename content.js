@@ -15,7 +15,6 @@ const TONES = [
 ];
 
 let panel         = null;   // DOM element (tạo 1 lần, dùng mãi)
-let hideTimer     = null;
 let selectedTone  = 'my-style';
 let activeTextbox = null;   // textbox đang được focus (để detect đúng tweet/comment)
 
@@ -162,8 +161,7 @@ function createPanel() {
     if (t) { insertTextIntoEditor(t); resultEl.style.display = 'none'; }
   });
 
-  // Click vào bất kỳ đâu trong panel → không ẩn
-  el.addEventListener('mousedown', () => clearTimeout(hideTimer));
+  // Click vào panel không làm mất focus reply box
 
   return el;
 }
@@ -178,11 +176,8 @@ function showPanel() {
   panel.classList.add('visible');
 }
 
-function hidePanel(delay = 0) {
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
-    if (panel) panel.classList.remove('visible');
-  }, delay);
+function hidePanel() {
+  if (panel) panel.classList.remove('visible');
 }
 
 // ─── Lắng nghe focus vào reply box ───────────────────────────────────────────
@@ -199,6 +194,3 @@ document.addEventListener('focusin', (e) => {
   showPanel();
 }, true);
 
-// Panel luôn hiển thị sau khi đã show lần đầu
-
-console.log('[Coreply] loaded ✅');

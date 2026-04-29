@@ -8,8 +8,6 @@
   /* Bên trái trang, trong vùng trắng bên trái navigation X */
   left: 16px;
   top: 38%;
-  transform: translateY(-38%);
-
   width: 215px;
   background: #ffffff;
   border: 1px solid #cfd9de;
@@ -23,7 +21,7 @@
   z-index: 99999;
   overflow: hidden;
 
-  /* Ẩn mặc định */
+  /* Ẩn mặc định — translateX(-8px) tạo hiệu ứng slide-in */
   opacity: 0;
   pointer-events: none;
   transform: translateY(-38%) translateX(-8px);
