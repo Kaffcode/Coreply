@@ -168,7 +168,6 @@ function createPanel() {
 
 // ─── Show / Hide panel ────────────────────────────────────────────────────────
 function showPanel() {
-  clearTimeout(hideTimer);
   if (!panel) {
     panel = createPanel();
     document.body.appendChild(panel);
