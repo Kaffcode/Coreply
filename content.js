@@ -27,7 +27,6 @@ function insertTextIntoEditor(text) {
   ed.focus();
   document.execCommand('selectAll', false, null);
   document.execCommand('insertText', false, text);
-  ed.dispatchEvent(new InputEvent('input', { bubbles: true }));
 }
 
 // ─── Lấy nội dung tweet/comment đang được reply ──────────────────────────────
