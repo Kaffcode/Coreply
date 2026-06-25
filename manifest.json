@@ -3,7 +3,7 @@
   "name": "Coreply",
   "version": "1.0.0",
   "description": "AI-powered reply generator for X using Groq",
-  "permissions": ["storage"],
+  "permissions": ["storage", "clipboardRead", "clipboardWrite", "tabs"],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",

@@ -14,57 +14,59 @@ const TONES = [
   { id: 'concise',      label: 'Concise',        icon: '✂️' },
 ];
 
-let panel         = null;   // DOM element (tạo 1 lần, dùng mãi)
+let panel         = null;
 let selectedTone  = 'my-style';
-let activeTextbox = null;   // textbox đang được focus (để detect đúng tweet/comment)
+let activeTextbox = null;
 
 // ─── Insert text vào X editor ─────────────────────────────────────────────────
-function insertTextIntoEditor(text) {
+async function insertTextIntoEditor(text) {
   const ed =
     document.querySelector('[data-testid="tweetTextarea_0"] [contenteditable="true"]') ||
     document.querySelector('[role="textbox"][contenteditable="true"]');
   if (!ed) { alert('Coreply: Không tìm thấy ô reply.'); return; }
+
   ed.focus();
-  document.execCommand('selectAll', false, null);
-  document.execCommand('insertText', false, text);
+  await navigator.clipboard.writeText(text);
+
+  ed.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'a', code: 'KeyA', keyCode: 65,
+    ctrlKey: true, bubbles: true, cancelable: true
+  }));
+  ed.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'v', code: 'KeyV', keyCode: 86,
+    ctrlKey: true, bubbles: true, cancelable: true
+  }));
+  document.execCommand('paste');
 }
 
-// ─── Lấy nội dung tweet/comment đang được reply ──────────────────────────────
-// Đi từ activeTextbox lên DOM, tìm tweet article gần nhất (chính xác hơn
-// so với lấy tweet đầu tiên trên trang — giúp reply đúng comment)
+// ─── Lấy nội dung tweet đang được reply ──────────────────────────────────────
 function getTweetContent() {
   let el = activeTextbox;
 
   for (let depth = 0; depth < 30 && el; depth++) {
-    // Case A: đang ở bên trong một article tweet
     if (el.tagName === 'ARTICLE' && el.getAttribute('data-testid') === 'tweet') {
       const t = el.querySelector('[data-testid="tweetText"]');
       if (t) return t.innerText.trim();
     }
-
-    // Case B: previous sibling là article tweet
     let prev = el.previousElementSibling;
     while (prev) {
       if (prev.tagName === 'ARTICLE' && prev.getAttribute('data-testid') === 'tweet') {
         const t = prev.querySelector('[data-testid="tweetText"]');
         if (t) return t.innerText.trim();
       }
-      // Tweet lồng bên trong sibling
       const nested = prev.querySelector('article[data-testid="tweet"] [data-testid="tweetText"]');
       if (nested) return nested.innerText.trim();
       prev = prev.previousElementSibling;
     }
-
     el = el.parentElement;
   }
 
-  // Fallback: tweet đầu tiên trên trang
   const nodes = document.querySelectorAll('[data-testid="tweetText"]');
   for (const n of nodes) { const t = n.innerText.trim(); if (t) return t; }
   return '';
 }
 
-// ─── Tạo panel (chỉ tạo 1 lần) ───────────────────────────────────────────────
+// ─── Tạo panel ───────────────────────────────────────────────────────────────
 function createPanel() {
   const el = document.createElement('div');
   el.id        = 'coreply-panel';
@@ -90,16 +92,10 @@ function createPanel() {
 
     <div class="cp-loading" style="display:none">
       <div class="cp-spinner"></div>
-      <span>Generating…</span>
+      <span>Generating 2 replies…</span>
     </div>
 
-    <div class="cp-result" style="display:none">
-      <p class="cp-result-text"></p>
-      <div class="cp-result-actions">
-        <button class="cp-btn-regen">↺ Regen</button>
-        <button class="cp-btn-use">Use reply ↗</button>
-      </div>
-    </div>
+    <div class="cp-results" style="display:none"></div>
   `;
 
   // ── Close ──
@@ -115,10 +111,9 @@ function createPanel() {
   });
 
   // ── Generate ──
-  const createBtn  = el.querySelector('.cp-create-btn');
-  const loadingEl  = el.querySelector('.cp-loading');
-  const resultEl   = el.querySelector('.cp-result');
-  const resultText = el.querySelector('.cp-result-text');
+  const createBtn = el.querySelector('.cp-create-btn');
+  const loadingEl = el.querySelector('.cp-loading');
+  const resultsEl = el.querySelector('.cp-results');
 
   async function generate() {
     const content = getTweetContent();
@@ -131,21 +126,49 @@ function createPanel() {
       return;
     }
 
-    createBtn.disabled   = true;
+    createBtn.disabled      = true;
     loadingEl.style.display = 'flex';
-    resultEl.style.display  = 'none';
+    resultsEl.style.display = 'none';
+    resultsEl.innerHTML     = '';
 
     try {
       const res = await chrome.runtime.sendMessage({
-        action: 'generateReply', tweetContent: content, toneId: selectedTone,
-        myStyle:  s.myStyle   || '',
-        language: s.language  || 'same as tweet',
-        model:    s.model     || 'llama-3.3-70b-versatile',
+        action: 'generateReply',
+        tweetContent: content,
+        toneId:   selectedTone,
+        myStyle:  s.myStyle  || '',
+        language: s.language || 'same as tweet',
+        model:    s.model    || 'llama-3.3-70b-versatile',
         apiKey:   s.groqApiKey,
       });
       if (res.error) throw new Error(res.error);
-      resultText.textContent = res.reply;
-      resultEl.style.display = 'block';
+
+      // Render 3 reply cards
+      res.replies.forEach((reply, idx) => {
+        const card = document.createElement('div');
+        card.className = 'cp-reply-card';
+        card.innerHTML = `
+          <div class="cp-reply-num">Option ${idx + 1}</div>
+          <p class="cp-reply-text">${escapeHtml(reply)}</p>
+          <div class="cp-reply-actions">
+            <button class="cp-btn-use" data-idx="${idx}">Use this ↗</button>
+          </div>
+        `;
+        card.querySelector('.cp-btn-use').addEventListener('click', () => {
+          insertTextIntoEditor(reply);
+          resultsEl.style.display = 'none';
+        });
+        resultsEl.appendChild(card);
+      });
+
+      // Nút Regen chung ở cuối
+      const regenRow = document.createElement('div');
+      regenRow.className = 'cp-regen-row';
+      regenRow.innerHTML = `<button class="cp-btn-regen">↺ Generate again</button>`;
+      regenRow.querySelector('.cp-btn-regen').addEventListener('click', () => generate());
+      resultsEl.appendChild(regenRow);
+
+      resultsEl.style.display = 'block';
     } catch (e) { alert('Coreply Error: ' + e.message); }
     finally {
       loadingEl.style.display = 'none';
@@ -153,24 +176,27 @@ function createPanel() {
     }
   }
 
-  createBtn.addEventListener('click',          () => generate());
-  el.querySelector('.cp-btn-regen').addEventListener('click', () => generate());
-  el.querySelector('.cp-btn-use').addEventListener('click',   () => {
-    const t = resultText.textContent;
-    if (t) { insertTextIntoEditor(t); resultEl.style.display = 'none'; }
-  });
+  createBtn.addEventListener('click', () => generate());
 
-  // Click vào panel không làm mất focus reply box
+  // Giữ focus reply box khi click panel
+  el.addEventListener('mousedown', e => e.preventDefault());
 
   return el;
 }
 
-// ─── Show / Hide panel ────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Show / Hide ──────────────────────────────────────────────────────────────
 function showPanel() {
   if (!panel) {
     panel = createPanel();
     document.body.appendChild(panel);
   }
+  // Reset kết quả cũ khi mở panel cho tweet mới
+  const resultsEl = panel.querySelector('.cp-results');
+  if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.style.display = 'none'; }
   panel.classList.add('visible');
 }
 
@@ -183,12 +209,10 @@ document.addEventListener('focusin', (e) => {
   const t = e.target;
   if (t.getAttribute('contenteditable') !== 'true') return;
   if (t.getAttribute('role') !== 'textbox') return;
-  // Chỉ hiện khi đang trong reply box (có data-testid tweetTextarea)
   const inReply =
     t.closest('[data-testid^="tweetTextarea"]') ||
     t.closest('[data-testid="tweetTextarea_0RichTextInputContainer"]');
   if (!inReply) return;
-  activeTextbox = t;   // lưu lại để getTweetContent dùng
+  activeTextbox = t;
   showPanel();
 }, true);
-

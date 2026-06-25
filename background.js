@@ -1,6 +1,5 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-// Tones có giới hạn 40 từ
 const WORD_LIMITED_TONES = ['casual','positive','professional','funny','question','supportive','concise'];
 
 function getTonePrompt(toneId, myStyle) {
@@ -34,22 +33,30 @@ async function handleGenerateReply({ tweetContent, toneId, myStyle, language, mo
   const toneDescription = getTonePrompt(toneId, myStyle);
   const selectedModel   = model || 'llama-3.3-70b-versatile';
   const wordLimit       = WORD_LIMITED_TONES.includes(toneId)
-    ? '- STRICT: reply must be under 40 words. Count carefully.'
-    : '- Keep it concise and natural.';
+    ? '- STRICT: each reply must be under 40 words.'
+    : '- Keep each reply concise and natural.';
 
   const systemPrompt = `You are a social media expert helping users write great replies on X (Twitter).
-Generate a reply ${toneDescription}.
+Generate exactly 2 different reply options ${toneDescription}.
 
 Rules:
 - Sound natural and authentic, like a real person
 - Do NOT start with "Great post!", "Absolutely!", or generic openers
-- Do NOT use the phrase "game changer" — use "boom" or "fire" instead if needed
+- Do NOT use the phrase "game changer"
 - Do NOT add hashtags unless they genuinely add value
 ${wordLimit}
-- Do NOT explain what you're doing or add preamble
-- Just output the reply text directly`;
+- Make the 2 replies meaningfully different from each other
 
-  const userPrompt = `Write a reply to this tweet or comment:\n"${tweetContent}"${language && language !== 'same as tweet' ? `\n\nImportant: Reply in ${language}.` : ''}`;
+IMPORTANT formatting rules:
+- Option 1: plain text only, absolutely NO emoji anywhere
+- Option 2: end the reply with exactly 1 emoji that genuinely fits the emotion or content
+  Examples: 🔥 excitement, 💡 insight, 🤔 curiosity, 😂 humor, 💪 motivation, 😮 surprise, 🎯 sharp point
+  The emoji must feel natural — not generic or random
+
+Output ONLY a valid JSON array with exactly 2 strings: ["plain reply", "reply with emoji at the end"]
+No markdown, no explanation, just the JSON array`;
+
+  const userPrompt = `Write 2 different replies to this tweet:\n"${tweetContent}"${language && language !== 'same as tweet' ? `\n\nImportant: Reply in ${language}.` : ''}`;
 
   const response = await fetch(GROQ_API_URL, {
     method: 'POST',
@@ -63,9 +70,8 @@ ${wordLimit}
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt   },
       ],
-      // my-style không bị giới hạn 40 từ nên cho phép dài hơn
-      max_tokens: WORD_LIMITED_TONES.includes(toneId) ? 120 : 300,
-      temperature: 0.8,
+      max_tokens: WORD_LIMITED_TONES.includes(toneId) ? 250 : 600,
+      temperature: 0.9,
     }),
   });
 
@@ -74,9 +80,26 @@ ${wordLimit}
     throw new Error(errData.error?.message || `Groq API Error: ${response.status}`);
   }
 
-  const data  = await response.json();
-  const reply = data.choices?.[0]?.message?.content?.trim();
-  if (!reply) throw new Error('No reply generated from API.');
+  const data = await response.json();
+  const raw  = data.choices?.[0]?.message?.content?.trim();
+  if (!raw) throw new Error('No reply generated from API.');
 
-  return { reply };
+  let replies;
+  try {
+    const clean = raw.replace(/```json|```/g, '').trim();
+    replies = JSON.parse(clean);
+    if (!Array.isArray(replies) || replies.length === 0) throw new Error();
+  } catch {
+    replies = raw.split(/\n+/).filter(l => l.trim()).slice(0, 2);
+  }
+
+  while (replies.length < 2) replies.push(replies[0] || '');
+  replies = replies.slice(0, 2).map(r =>
+    String(r).replace(/^["'\d.\-\s]+/, '').replace(/["']$/, '').trim()
+  );
+
+  // Đảm bảo option 1 không có emoji
+  replies[0] = replies[0].replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+
+  return { replies };
 }
